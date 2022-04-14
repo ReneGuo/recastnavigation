@@ -429,10 +429,12 @@ void NavMeshTesterTool::handleMenu()
 		std::string final_path = abs_path + filename;
 		std::ofstream findpath_check(final_path, std::ios::out | std::ios::trunc);
 		const int MAX_ATTEMPTED_POINTS = 2048;
-		const int MAX_REQUIRED_POINTS = 64;
+		const int MAX_REQUIRED_POINTS = 32;
 		const float MIN_OBSTACLE_DISTANCE = 3.0;
 		float filted_obstacle_pos[3] = {0, 0, 0};
-		const float filted_obstacle_radius = 4.0;
+		const float filted_obstacle_radius = 3.0;
+		const float MAX_DENSITY_DIST = 4.0;
+		const int MAX_DENSITY_DIST_VARIANCE_PERCENT = 100;
 		float hitDist;
 		float hitPos[3];
 		float hitNormal[3];
@@ -466,6 +468,30 @@ void NavMeshTesterTool::handleMenu()
 				m_navQuery->findDistanceToWall_filter(ref, pt, filted_obstacle_pos, filted_obstacle_radius, 10.0, &m_filter, &hitDist, hitPos, hitNormal);
 				if (hitDist > MIN_OBSTACLE_DISTANCE)
 				{
+					float density_temp_point[3];
+					bool flag_density_check = true;
+					// check density
+					float percentage = float((100 + (rand() % ((MAX_DENSITY_DIST_VARIANCE_PERCENT) - (-1 * MAX_DENSITY_DIST_VARIANCE_PERCENT) + 1)) + -1 * MAX_DENSITY_DIST_VARIANCE_PERCENT)) / 100;
+					findpath_check << "percentage " << percentage << std::endl;
+
+					for (int j = 0; j < m_nrandPoints; j++)
+					{
+						for (int k = 0; k < 3; k++)
+						{
+							density_temp_point[k] = m_randPoints[j * 3 + k];
+						}
+
+						if (test.validate_arrive(pt, density_temp_point, MAX_DENSITY_DIST * percentage))
+						{
+							flag_density_check = false;
+							break;
+						}
+					}
+					if (flag_density_check && dtStatusSucceed(status))
+					{
+						dtVcopy(&m_randPoints[m_nrandPoints * 3], pt);
+						m_nrandPoints++;
+					}
 					findpath_check << "# " << i << " SELECTED " << std::endl;
 					findpath_check << "Hit distance: " << hitDist << std::endl;
 
@@ -474,11 +500,6 @@ void NavMeshTesterTool::handleMenu()
 						findpath_check << pt[j] << " ";
 					}
 					findpath_check << std::endl;
-					if (dtStatusSucceed(status))
-					{
-						dtVcopy(&m_randPoints[m_nrandPoints * 3], pt);
-						m_nrandPoints++;
-					}
 				}
 				else
 				{
