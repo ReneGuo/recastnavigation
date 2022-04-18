@@ -21,11 +21,12 @@ RecastDemo是一个GUI的可视化demo，展示了整个工具的所有功能。
 
 ### 随机选择NPC出生点
 打开编译好的RecastDemo，选择solomesh和需要的地图文件（.obj），build或者load之后左侧选择make random spawn points。<br>
+现在可以设置密度、障碍物忽略及走廊地形识别。
 **NOTE：具体参数和是否过滤需要在code中调整。**
 
 
 ## 预览
 
 ![screenshot of tme navigation result](tmeland_multipath_navigation_shifted.png)
-![screenshot of 3dmusician points picking result](3DMusician_random_spawn_points_picking_filtered.png)
+![screenshot of tmeland points picking result](tmeland_random_pp_obstacle-detect_density-check_corridor-checlk,_no-igonored-obstacle.png)
 

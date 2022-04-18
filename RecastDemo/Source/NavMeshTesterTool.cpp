@@ -49,7 +49,6 @@
 // Returns a random number [0..1]
 static float frand()
 {
-	//	return ((float)(rand() & 0xffff)/(float)0xffff);
 	return (float)rand() / (float)RAND_MAX;
 }
 
@@ -414,8 +413,8 @@ void NavMeshTesterTool::handleMenu()
 
 		dtPolyRef pivot_ref;
 
-		// float pivot[3] = {-2.063193, -0.000061, 48.171658}; // tme center square
-		float pivot[3] = {-3.012138, 0.000002, 1.393684}; // 3D Musician Space
+		float pivot[3] = {-2.063193, -0.000061, 48.171658}; // tme center square
+		// float pivot[3] = {-3.012138, 0.000002, 1.393684}; // 3D Musician Space
 		// float pivot[3] = {1.424002, 0.002388, 2.550192}; // 3D streaming house
 
 		const float polyPickExt[3] = {2, 4, 2};
@@ -425,17 +424,28 @@ void NavMeshTesterTool::handleMenu()
 		m_nrandPoints = 0;
 
 		std::string abs_path = "C:\\Users\\Administrator\\Desktop\\Code\\recastnavigation\\RecastDemo\\Bin\\Results\\";
-		std::string filename = "findpath_check.txt";
-		std::string final_path = abs_path + filename;
-		std::ofstream findpath_check(final_path, std::ios::out | std::ios::trunc);
-		const int MAX_ATTEMPTED_POINTS = 2048;
-		const int MAX_REQUIRED_POINTS = 64;
-		const float MIN_OBSTACLE_DISTANCE = 3.0;
+		std::string temp_filename = "findpath_check.txt";
+		std::string temp_final_path = abs_path + temp_filename;
+		std::ofstream findpath_check(temp_final_path, std::ios::out | std::ios::trunc);
+
+		std::string output_filename = "pointpicking.txt";
+		std::string output_final_path = abs_path + output_filename;
+		std::ofstream pointpicking(output_final_path, std::ios::out | std::ios::trunc);
+
+		const float MAX_RADIUS = 10;
+		const int MAX_ATTEMPTED_POINTS = 1024 * 20;
+		const int MAX_REQUIRED_POINTS = 256 * 3;
+		const float MIN_OBSTACLE_DISTANCE = 5.0;
+		const float MIN_CORRIDOR_EDGE_DISTANCE = 1.0;
+
 		float filted_obstacle_pos[3] = {0, 0, 0};
-		const float filted_obstacle_radius = 4.0;
+		const float filted_obstacle_radius = 3.0;
+		const float MAX_DENSITY_DIST = 5.0;
+		const int MAX_DENSITY_DIST_VARIANCE_PERCENT = 80;
 		float hitDist;
 		float hitPos[3];
 		float hitNormal[3];
+		const int MAX_POLYS = 256;
 
 		for (int i = 0; i < MAX_ATTEMPTED_POINTS && m_nrandPoints < MAX_REQUIRED_POINTS; i++)
 		{
@@ -443,10 +453,8 @@ void NavMeshTesterTool::handleMenu()
 			float straight[MAX_POLYS * 3];
 			// Reverse x axis
 			pivot[0] = pivot[0] * -1;
-
+			dtQueryFilter _filter;
 			hitDist = 0;
-			// delete[] & polys;
-			// delete[] & straight;
 
 			float pt[3];
 			dtPolyRef ref;
@@ -462,32 +470,204 @@ void NavMeshTesterTool::handleMenu()
 			TestCase test;
 			if (test.validate_arrive(pt, final_pos, 1))
 			{
-				// m_navQuery->findDistanceToWall(ref, pt, 10.0, &m_filter, &hitDist, hitPos, hitNormal);
-				m_navQuery->findDistanceToWall_filter(ref, pt, filted_obstacle_pos, filted_obstacle_radius, 10.0, &m_filter, &hitDist, hitPos, hitNormal);
+				m_navQuery->findDistanceToWall(ref, pt, MAX_RADIUS, &m_filter, &hitDist, hitPos, hitNormal);
+				// m_navQuery->findDistanceToWall_filter(ref, pt, filted_obstacle_pos, filted_obstacle_radius, MAX_RADIUS, &m_filter, &hitDist, hitPos, hitNormal);
+
 				if (hitDist > MIN_OBSTACLE_DISTANCE)
 				{
-					findpath_check << "# " << i << " SELECTED " << std::endl;
-					findpath_check << "Hit distance: " << hitDist << std::endl;
+					float density_temp_point[3];
+					bool flag_density_check = true;
+					// check density
+					float percentage = float((100 + (rand() % ((MAX_DENSITY_DIST_VARIANCE_PERCENT) - (-1 * MAX_DENSITY_DIST_VARIANCE_PERCENT) + 1)) + -1 * MAX_DENSITY_DIST_VARIANCE_PERCENT)) / 100;
+					// findpath_check << "Variance percentage " << percentage << std::endl;
 
-					for (int j = 0; j < 3; j++)
+					for (int j = 0; j < m_nrandPoints; j++)
 					{
-						findpath_check << pt[j] << " ";
+						for (int k = 0; k < 3; k++)
+						{
+							density_temp_point[k] = m_randPoints[j * 3 + k];
+						}
+
+						if (test.validate_arrive(pt, density_temp_point, MAX_DENSITY_DIST * percentage))
+						{
+							flag_density_check = false;
+							break;
+						}
 					}
-					findpath_check << std::endl;
-					if (dtStatusSucceed(status))
+					if (flag_density_check && dtStatusSucceed(status))
 					{
 						dtVcopy(&m_randPoints[m_nrandPoints * 3], pt);
+						findpath_check << "# " << i << " SELECTED " << std::endl;
+						findpath_check << "Hit distance: " << hitDist << std::endl;
+						pointpicking << "#" << m_nrandPoints << " NORMAL SELECTED " << std::endl;
+						for (int j = 0; j < 3; j++)
+						{
+							findpath_check << pt[j] << " ";
+							pointpicking << pt[j] << " ";
+						}
+						findpath_check << std::endl;
+						pointpicking << std::endl;
+						pointpicking << "-------------------------------" << std::endl;
+
 						m_nrandPoints++;
 					}
 				}
 				else
 				{
-					findpath_check << i << " OBSTABLE TOO CLOSE " << std::endl;
-					for (int j = 0; j < 3; j++)
+					if (hitDist < MIN_CORRIDOR_EDGE_DISTANCE)
 					{
-						findpath_check << pt[j] << " ";
+						findpath_check << i << " OBSTABLE TOO CLOSE " << std::endl;
+						for (int j = 0; j < 3; j++)
+						{
+							findpath_check << pt[j] << " ";
+						}
+						findpath_check << std::endl;
+						findpath_check << "# SELECTED POINTS: " << m_nrandPoints << std::endl;
+						findpath_check << "-------------------------------" << std::endl;
+						continue;
 					}
-					findpath_check << std::endl;
+					// judge if is in a lane
+					float t;
+					float t_r90;
+					float t_r270;
+					float _hitNormal[3];
+					dtPolyRef _polys[MAX_POLYS];
+					dtPolyRef corridor_mid_ref;
+					int _npolys;
+					float backward_hitPos[3];
+					float reversed_targetPos[3];
+					float CORRIDOR_WIDTH_COE = 2;
+					float CORRIDOR_LENGTH_COE = 4;
+
+					bool IF_CORRIDOR;
+					// bool IF_CORRIDOR_90;
+					// bool IF_CORRIDOR_270;
+					reversed_targetPos[0] = pt[0] + (hitPos[0] - pt[0]) * -1 * CORRIDOR_WIDTH_COE;
+					reversed_targetPos[2] = pt[2] + (hitPos[2] - pt[2]) * -1 * CORRIDOR_WIDTH_COE;
+
+					m_navQuery->raycast(ref, pt, reversed_targetPos, &_filter, &t, _hitNormal, _polys, &_npolys, MAX_POLYS);
+					// m_navQuery->raycast(m_startRef, m_spos, m_epos, &m_filter, &t, m_hitNormal, m_polys, &m_npolys, MAX_POLYS);
+
+					if (t > 1)
+					{
+						// No hit
+						// dtVcopy(m_hitPos, m_epos);
+
+						IF_CORRIDOR = false;
+						findpath_check << i << " CORRIDOR OBSTABLE TOO CLOSE " << std::endl;
+						for (int j = 0; j < 3; j++)
+						{
+							findpath_check << pt[j] << " ";
+						}
+						findpath_check << std::endl;
+					}
+					else
+					{
+						// Hit
+						dtVlerp(backward_hitPos, pt, reversed_targetPos, t);
+
+						// check rotate 90 and -90
+						float corridor_mid[3];
+
+						corridor_mid[0] = (backward_hitPos[0] + hitPos[0]) * 0.5f;
+						corridor_mid[1] = hitPos[1];
+						corridor_mid[2] = (backward_hitPos[2] + hitPos[2]) * 0.5f;
+
+						const float PI = 3.1415926535897932;
+						const float rotate_angle_90 = 90;
+						const float rotate_angle_270 = 270;
+
+						float rotate_angle_radian_90 = rotate_angle_90 * PI / 180.0;
+						float rotate_angle_radian_270 = rotate_angle_270 * PI / 180.0;
+
+						float corridor_mid_r90[3];
+						float corridor_mid_r270[3];
+
+						corridor_mid_r90[0] = (hitPos[0] - corridor_mid[0]) * cos(-1 * rotate_angle_radian_90) - (hitPos[2] - corridor_mid[2]) * sin(-1 * rotate_angle_radian_90) + corridor_mid[0];
+						corridor_mid_r90[1] = corridor_mid[1];
+						corridor_mid_r90[2] = (hitPos[0] - corridor_mid[0]) * sin(-1 * rotate_angle_radian_90) + (hitPos[2] - corridor_mid[2]) * cos(-1 * rotate_angle_radian_90) + corridor_mid[2];
+
+						corridor_mid_r270[0] = (hitPos[0] - corridor_mid[0]) * cos(-1 * rotate_angle_radian_270) - (hitPos[2] - corridor_mid[2]) * sin(-1 * rotate_angle_radian_270) + corridor_mid[0];
+						corridor_mid_r270[1] = corridor_mid[1];
+						corridor_mid_r270[2] = (hitPos[0] - corridor_mid[0]) * sin(-1 * rotate_angle_radian_270) + (hitPos[2] - corridor_mid[2]) * cos(-1 * rotate_angle_radian_270) + corridor_mid[2];
+
+						float corridor_mid_r90_extended[3];
+						float corridor_mid_r270_extended[3];
+
+						corridor_mid_r90_extended[0] = corridor_mid[0] + (corridor_mid_r90[0] - corridor_mid[0]) * CORRIDOR_LENGTH_COE;
+						corridor_mid_r90_extended[1] = corridor_mid_r90[1];
+						corridor_mid_r90_extended[2] = corridor_mid[2] + (corridor_mid_r90[2] - corridor_mid[2]) * CORRIDOR_LENGTH_COE;
+
+						corridor_mid_r270_extended[0] = corridor_mid[0] + (corridor_mid_r270[0] - corridor_mid[0]) * CORRIDOR_LENGTH_COE;
+						corridor_mid_r270_extended[1] = corridor_mid_r270[1];
+						corridor_mid_r270_extended[2] = corridor_mid[2] + (corridor_mid_r270[2] - corridor_mid[2]) * CORRIDOR_LENGTH_COE;
+
+						m_navQuery->findNearestPoly(corridor_mid, m_polyPickExt, &_filter, &corridor_mid_ref, 0);
+
+						m_navQuery->raycast(corridor_mid_ref, corridor_mid, corridor_mid_r90_extended, &_filter, &t_r90, _hitNormal, _polys, &_npolys, MAX_POLYS);
+						m_navQuery->raycast(corridor_mid_ref, corridor_mid, corridor_mid_r270_extended, &_filter, &t_r270, _hitNormal, _polys, &_npolys, MAX_POLYS);
+						// if (t_r90 <= 1.0)
+						// {
+						// 	findpath_check << i << " ROTATION 90 TOO NARROW " << std::endl;
+						// }
+						// if (t_r270 <= 1.0)
+						// {
+						// 	findpath_check << i << " ROTATION 270 TOO NARROW " << std::endl;
+						// }
+						if (t_r90 <= 1.0 || t_r270 <= 1.0)
+						{
+
+							IF_CORRIDOR = false;
+							findpath_check << i << " CORRIDOR LEFT OR RIGHT SIDE TOO NARROW " << std::endl;
+							for (int j = 0; j < 3; j++)
+							{
+								findpath_check << pt[j] << " ";
+							}
+							findpath_check << std::endl;
+						}
+						else
+						{
+							IF_CORRIDOR = true;
+							float density_temp_point[3];
+							bool flag_density_check = true;
+							// check density
+							float percentage = float((100 + (rand() % ((MAX_DENSITY_DIST_VARIANCE_PERCENT) - (-1 * MAX_DENSITY_DIST_VARIANCE_PERCENT) + 1)) + -1 * MAX_DENSITY_DIST_VARIANCE_PERCENT)) / 100;
+
+							for (int j = 0; j < m_nrandPoints; j++)
+							{
+								for (int k = 0; k < 3; k++)
+								{
+									density_temp_point[k] = m_randPoints[j * 3 + k];
+								}
+
+								if (test.validate_arrive(pt, density_temp_point, MAX_DENSITY_DIST * percentage))
+								{
+									flag_density_check = false;
+									break;
+								}
+							}
+							if (flag_density_check && dtStatusSucceed(status))
+							{
+								dtVcopy(&m_randPoints[m_nrandPoints * 3], pt);
+
+								findpath_check << "#" << i << " SELECTED (IN CORRIDOR) " << std::endl;
+								pointpicking << "# " << m_nrandPoints << "  IN CORRIDOR SELECTED " << std::endl;
+
+								// findpath_check << "Hit distance: " << hitDist << std::endl;
+								// findpath_check << "Backward Hit distance T: " << t << std::endl;
+								// pointpicking << "# " << i << " SELECTED " << std::endl;
+								for (int j = 0; j < 3; j++)
+								{
+									findpath_check << pt[j] << " ";
+									pointpicking << pt[j] << " ";
+								}
+								findpath_check << std::endl;
+								pointpicking << std::endl;
+								m_nrandPoints++;
+								pointpicking << "-------------------------------" << std::endl;
+							}
+						}
+					}
 				}
 			}
 			else
@@ -499,10 +679,11 @@ void NavMeshTesterTool::handleMenu()
 				}
 				findpath_check << std::endl;
 			}
-
-			findpath_check << "======================================" << std::endl;
+			findpath_check << "# SELECTED POINTS: " << m_nrandPoints << std::endl;
+			findpath_check << "-------------------------------" << std::endl;
 		}
 		findpath_check.close();
+		pointpicking.close();
 	}
 
 	imguiSeparator();
