@@ -434,9 +434,11 @@ void NavMeshTesterTool::handleMenu()
 		std::ofstream pointpicking(output_final_path, std::ios::out | std::ios::trunc);
 
 		const float MAX_RADIUS = 10;
-		const int MAX_ATTEMPTED_POINTS = 2048;
-		const int MAX_REQUIRED_POINTS = 64;
+		const int MAX_ATTEMPTED_POINTS = 1024;
+		const int MAX_REQUIRED_POINTS = 100;
 		const float MIN_OBSTACLE_DISTANCE = 8.0;
+		const float MIN_CORRIDOR_EDGE_DISTANCE = 1.0;
+
 		float filted_obstacle_pos[3] = {0, 0, 0};
 		const float filted_obstacle_radius = 3.0;
 		const float MAX_DENSITY_DIST = 5.0;
@@ -444,6 +446,7 @@ void NavMeshTesterTool::handleMenu()
 		float hitDist;
 		float hitPos[3];
 		float hitNormal[3];
+		const int MAX_POLYS = 256;
 
 		for (int i = 0; i < MAX_ATTEMPTED_POINTS && m_nrandPoints < MAX_REQUIRED_POINTS; i++)
 		{
@@ -453,8 +456,6 @@ void NavMeshTesterTool::handleMenu()
 			pivot[0] = pivot[0] * -1;
 			dtQueryFilter _filter;
 			hitDist = 0;
-			// delete[] & polys;
-			// delete[] & straight;
 
 			float pt[3];
 			dtPolyRef ref;
@@ -512,6 +513,16 @@ void NavMeshTesterTool::handleMenu()
 				}
 				else
 				{
+					if (hitDist < MIN_CORRIDOR_EDGE_DISTANCE)
+					{
+						findpath_check << i << " OBSTABLE TOO CLOSE " << std::endl;
+						for (int j = 0; j < 3; j++)
+						{
+							findpath_check << pt[j] << " ";
+						}
+						findpath_check << std::endl;
+						continue;
+					}
 					// judge if is in a lane
 					float t;
 					float t_r90;
@@ -523,7 +534,7 @@ void NavMeshTesterTool::handleMenu()
 					float backward_hitPos[3];
 					float reversed_targetPos[3];
 					float CORRIDOR_WIDTH_COE = 2;
-					float CORRIDOR_LENGTH_COE = 1;
+					float CORRIDOR_LENGTH_COE = 4;
 
 					bool IF_CORRIDOR;
 					// bool IF_CORRIDOR_90;
@@ -554,10 +565,10 @@ void NavMeshTesterTool::handleMenu()
 
 						// check rotate 90 and -90
 						float corridor_mid[3];
-						for (int t = 0; t < 3; t++)
-						{
-							corridor_mid[t] = (backward_hitPos[t] + hitPos[t]) * 0.5f;
-						}
+
+						corridor_mid[0] = (backward_hitPos[0] + hitPos[0]) * 0.5f;
+						corridor_mid[1] = hitPos[1];
+						corridor_mid[2] = (backward_hitPos[2] + hitPos[2]) * 0.5f;
 
 						const float PI = 3.1415926535897932;
 						const float rotate_angle_90 = 90;
@@ -592,9 +603,17 @@ void NavMeshTesterTool::handleMenu()
 
 						m_navQuery->raycast(corridor_mid_ref, corridor_mid, corridor_mid_r90_extended, &_filter, &t_r90, _hitNormal, _polys, &_npolys, MAX_POLYS);
 						m_navQuery->raycast(corridor_mid_ref, corridor_mid, corridor_mid_r270_extended, &_filter, &t_r270, _hitNormal, _polys, &_npolys, MAX_POLYS);
-
-						if (t_r90 <= 1 || t_r270 <= 1)
+						if (t_r90 <= 1.0)
 						{
+							findpath_check << i << " ROTATION 90 TOO NARROW " << std::endl;
+						}
+						if (t_r270 <= 1.0)
+						{
+							findpath_check << i << " ROTATION 270 TOO NARROW " << std::endl;
+						}
+						if (t_r90 <= 1.0 || t_r270 <= 1.0)
+						{
+
 							IF_CORRIDOR = false;
 							findpath_check << i << " CORRIDOR LEFT OR RIGHT SIDE TOO NARROW " << std::endl;
 							for (int j = 0; j < 3; j++)
