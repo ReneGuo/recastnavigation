@@ -69,7 +69,7 @@ class NavMeshTesterTool : public SampleTool
 	int m_nsmoothPath;
 	float m_queryPoly[4 * 3];
 
-	static const int MAX_RAND_POINTS = 64;
+	static const int MAX_RAND_POINTS = 1024; // MODIFIED
 	float m_randPoints[MAX_RAND_POINTS * 3];
 	int m_nrandPoints;
 	bool m_randPointsInCircle;

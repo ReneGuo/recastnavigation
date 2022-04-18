@@ -49,7 +49,6 @@
 // Returns a random number [0..1]
 static float frand()
 {
-	//	return ((float)(rand() & 0xffff)/(float)0xffff);
 	return (float)rand() / (float)RAND_MAX;
 }
 
@@ -434,9 +433,9 @@ void NavMeshTesterTool::handleMenu()
 		std::ofstream pointpicking(output_final_path, std::ios::out | std::ios::trunc);
 
 		const float MAX_RADIUS = 10;
-		const int MAX_ATTEMPTED_POINTS = 1024;
-		const int MAX_REQUIRED_POINTS = 100;
-		const float MIN_OBSTACLE_DISTANCE = 8.0;
+		const int MAX_ATTEMPTED_POINTS = 1024 * 20;
+		const int MAX_REQUIRED_POINTS = 256 * 3;
+		const float MIN_OBSTACLE_DISTANCE = 5.0;
 		const float MIN_CORRIDOR_EDGE_DISTANCE = 1.0;
 
 		float filted_obstacle_pos[3] = {0, 0, 0};
@@ -480,7 +479,7 @@ void NavMeshTesterTool::handleMenu()
 					bool flag_density_check = true;
 					// check density
 					float percentage = float((100 + (rand() % ((MAX_DENSITY_DIST_VARIANCE_PERCENT) - (-1 * MAX_DENSITY_DIST_VARIANCE_PERCENT) + 1)) + -1 * MAX_DENSITY_DIST_VARIANCE_PERCENT)) / 100;
-					findpath_check << "Variance percentage " << percentage << std::endl;
+					// findpath_check << "Variance percentage " << percentage << std::endl;
 
 					for (int j = 0; j < m_nrandPoints; j++)
 					{
@@ -498,18 +497,20 @@ void NavMeshTesterTool::handleMenu()
 					if (flag_density_check && dtStatusSucceed(status))
 					{
 						dtVcopy(&m_randPoints[m_nrandPoints * 3], pt);
+						findpath_check << "# " << i << " SELECTED " << std::endl;
+						findpath_check << "Hit distance: " << hitDist << std::endl;
+						pointpicking << "#" << m_nrandPoints << " NORMAL SELECTED " << std::endl;
+						for (int j = 0; j < 3; j++)
+						{
+							findpath_check << pt[j] << " ";
+							pointpicking << pt[j] << " ";
+						}
+						findpath_check << std::endl;
+						pointpicking << std::endl;
+						pointpicking << "-------------------------------" << std::endl;
+
 						m_nrandPoints++;
 					}
-					findpath_check << "# " << i << " SELECTED " << std::endl;
-					findpath_check << "Hit distance: " << hitDist << std::endl;
-					pointpicking << "# " << i << " SELECTED " << std::endl;
-					for (int j = 0; j < 3; j++)
-					{
-						findpath_check << pt[j] << " ";
-						pointpicking << pt[j] << " ";
-					}
-					findpath_check << std::endl;
-					pointpicking << std::endl;
 				}
 				else
 				{
@@ -521,6 +522,8 @@ void NavMeshTesterTool::handleMenu()
 							findpath_check << pt[j] << " ";
 						}
 						findpath_check << std::endl;
+						findpath_check << "# SELECTED POINTS: " << m_nrandPoints << std::endl;
+						findpath_check << "-------------------------------" << std::endl;
 						continue;
 					}
 					// judge if is in a lane
@@ -551,7 +554,7 @@ void NavMeshTesterTool::handleMenu()
 						// dtVcopy(m_hitPos, m_epos);
 
 						IF_CORRIDOR = false;
-						findpath_check << i << " OBSTABLE TOO CLOSE " << std::endl;
+						findpath_check << i << " CORRIDOR OBSTABLE TOO CLOSE " << std::endl;
 						for (int j = 0; j < 3; j++)
 						{
 							findpath_check << pt[j] << " ";
@@ -603,14 +606,14 @@ void NavMeshTesterTool::handleMenu()
 
 						m_navQuery->raycast(corridor_mid_ref, corridor_mid, corridor_mid_r90_extended, &_filter, &t_r90, _hitNormal, _polys, &_npolys, MAX_POLYS);
 						m_navQuery->raycast(corridor_mid_ref, corridor_mid, corridor_mid_r270_extended, &_filter, &t_r270, _hitNormal, _polys, &_npolys, MAX_POLYS);
-						if (t_r90 <= 1.0)
-						{
-							findpath_check << i << " ROTATION 90 TOO NARROW " << std::endl;
-						}
-						if (t_r270 <= 1.0)
-						{
-							findpath_check << i << " ROTATION 270 TOO NARROW " << std::endl;
-						}
+						// if (t_r90 <= 1.0)
+						// {
+						// 	findpath_check << i << " ROTATION 90 TOO NARROW " << std::endl;
+						// }
+						// if (t_r270 <= 1.0)
+						// {
+						// 	findpath_check << i << " ROTATION 270 TOO NARROW " << std::endl;
+						// }
 						if (t_r90 <= 1.0 || t_r270 <= 1.0)
 						{
 
@@ -629,7 +632,6 @@ void NavMeshTesterTool::handleMenu()
 							bool flag_density_check = true;
 							// check density
 							float percentage = float((100 + (rand() % ((MAX_DENSITY_DIST_VARIANCE_PERCENT) - (-1 * MAX_DENSITY_DIST_VARIANCE_PERCENT) + 1)) + -1 * MAX_DENSITY_DIST_VARIANCE_PERCENT)) / 100;
-							findpath_check << "Variance percentage " << percentage << std::endl;
 
 							for (int j = 0; j < m_nrandPoints; j++)
 							{
@@ -647,20 +649,23 @@ void NavMeshTesterTool::handleMenu()
 							if (flag_density_check && dtStatusSucceed(status))
 							{
 								dtVcopy(&m_randPoints[m_nrandPoints * 3], pt);
-								m_nrandPoints++;
-							}
-							findpath_check << "# " << i << "  IN CORRIDOR SELECTED " << std::endl;
-							findpath_check << "Hit distance: " << hitDist << std::endl;
-							findpath_check << "Backward Hit distance T: " << t << std::endl;
 
-							pointpicking << "# " << i << " SELECTED " << std::endl;
-							for (int j = 0; j < 3; j++)
-							{
-								findpath_check << pt[j] << " ";
-								pointpicking << pt[j] << " ";
+								findpath_check << "#" << i << " SELECTED (IN CORRIDOR) " << std::endl;
+								pointpicking << "# " << m_nrandPoints << "  IN CORRIDOR SELECTED " << std::endl;
+
+								// findpath_check << "Hit distance: " << hitDist << std::endl;
+								// findpath_check << "Backward Hit distance T: " << t << std::endl;
+								// pointpicking << "# " << i << " SELECTED " << std::endl;
+								for (int j = 0; j < 3; j++)
+								{
+									findpath_check << pt[j] << " ";
+									pointpicking << pt[j] << " ";
+								}
+								findpath_check << std::endl;
+								pointpicking << std::endl;
+								m_nrandPoints++;
+								pointpicking << "-------------------------------" << std::endl;
 							}
-							findpath_check << std::endl;
-							pointpicking << std::endl;
 						}
 					}
 				}
@@ -674,9 +679,8 @@ void NavMeshTesterTool::handleMenu()
 				}
 				findpath_check << std::endl;
 			}
-
+			findpath_check << "# SELECTED POINTS: " << m_nrandPoints << std::endl;
 			findpath_check << "-------------------------------" << std::endl;
-			pointpicking << "-------------------------------" << std::endl;
 		}
 		findpath_check.close();
 		pointpicking.close();

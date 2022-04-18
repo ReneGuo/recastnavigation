@@ -33,7 +33,7 @@
 
 #include "imgui.h"
 #include "imguiRenderGL.h"
-
+#include <ctime>
 #include "Recast.h"
 #include "RecastDebugDraw.h"
 #include "InputGeom.h"
@@ -71,6 +71,8 @@ static const int g_nsamples = sizeof(g_samples) / sizeof(SampleItem);
 
 int main(int /*argc*/, char ** /*argv*/)
 {
+	srand((unsigned int)(time(NULL)));
+
 	// Init SDL
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
 	{
